@@ -17,7 +17,7 @@ animtime = 13
 
 heatRate = .1
 
-n = 500
+n = 200
 dt = .0005
 length = .01 #depth of ab layer
 dx = length/n

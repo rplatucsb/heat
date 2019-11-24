@@ -14,8 +14,8 @@ plt.close("all")
 fig,ax = plt.subplots()
 ax2 = ax.twinx()
 
-
-RPAname =  "500psithermo.txt"
+mtoin = 39.3701
+RPAname =  "350psi2.8MR11ContractThermo.txt"
 #RPAname = "rpa300psithermo.txt"
 f = open(RPAname,'r')
 lines = f.readlines()
@@ -44,13 +44,19 @@ maxT = 313
 def fMin(l,i):
     return abs(maxT - sim.runSim(l,h[i],tAw[i],radius[i])[0][-1])
 
-#results = []
-#for i in range(len(h)):
-#    i=-1
-#    results.append(opt.fminbound(fMin,0.002,0.02,args=(1,)))
-#    print(results,h[i],tAw[i],radius[i])
-#    
+results = []
+for i in range(len(h)):
+    i=-1
+    results.append(opt.fminbound(fMin,0.002,0.02,args=(1,)))
+    print(results,h[i],tAw[i],radius[i])
+    
 #results = np.array([0.00911312810007722, 0.009113663223527996, 0.009114142611088857, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114194833689774, 0.009114131548339193, 0.009120386141606, 0.009138508391178794, 0.009169258801571852, 0.00921159404780107, 0.009250289011530324, 0.009268646543756231, 0.009254865791769214, 0.009241499549163945, 0.009109280485164278, 0.009008207845058317, 0.008904521240283656])
+#find only throat
+#ind = np.where(radius==min(radius))
+#ind = int(ind[0])
+#throatThick = opt.fminbound(fMin,0.002,0.03,args=(ind,))
+#results = np.array([throatThick])
+#print(str(results*mtoin) + " thickness in inches at throat")
 
 loc = loc*100/2.54
 radius = radius*100/2.54
