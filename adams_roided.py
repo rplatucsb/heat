@@ -10,18 +10,6 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 from pylab import pcolor
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
-    """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
@@ -32,9 +20,10 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 np.set_printoptions(precision=5)
 np.set_printoptions(suppress=True)
 
-nr = 40
-ntheta = 10
-dt = .01
+#sim mesh options
+nr = 100
+ntheta = 100
+dt = .001
 time = 10
 
 
@@ -81,8 +70,6 @@ Taw = 3300 #k
 
 
 
-
-
 #def runSim(length,hg,Taw,ri,disp = True):
 
 length,hg,Taw,ri,disp = .015,2593,2880,.0165,True
@@ -92,10 +79,12 @@ rarr = np.linspace(ri,ri+length,nr)
 thetaarr = np.linspace(0,2*np.pi,ntheta)
 
 #FORMAT is T(theta,radius)
+#IE ise theta is rows, iso R is columns
 T = np.zeros((2,ntheta,nr))
 
 
-
+#a1,a2 are second and first T derivative wrt R
+#a3 is second order T derivative with theta
 A1,A2,A3 = np.zeros((nr,nr)),np.zeros((nr,nr)),np.zeros((ntheta,ntheta))
 
 #DEFINE BOUNDARY CONDITIONS
@@ -117,6 +106,7 @@ A3[0][-1] = 1
 A3[-1][-1] = -2
 A3[-1][-2] = 1
 A3[-1][0] = 1
+#central finite differences in r and theta
 for i in range (1,nr-1):
     A1[i][i-1] = 1 
     A1[i][i+1] = 1
@@ -138,15 +128,21 @@ A1 = A1 / dr**2
 A2 = A2 / (dr)
 A3 = A3 / dtheta**2
 
-
 T[0,:,:] = 285
 T[0,:,0] = 280
 dT = np.zeros((ntheta,nr))
 for i in range(int(time/dt)):
+    
+    """ Original code, capable of heat flow in r and theta directions
     for count,Tr in enumerate(T[0]): #in a single iteration, we have a matrix of temps at a certain theta
         dT[count,:] = alpha(Tr) * ((np.matmul(A1,Tr) + np.matmul(A2,Tr)))
     for count,Ttheta in enumerate(T[0].T):#in a single iteration, we have a matrix of temps at a certain radius
         dT[:,count] += alpha(Ttheta) * ((np.matmul(A3,Ttheta))*(1/rarr[count]**2))
+    """
+    """ This code runs much faster, but can only do axisymmetric"""
+    dtuniform = alpha(T[0,0,:]) * ((np.matmul(A1,T[0,0,:]) + np.matmul(A2,T[0,0,:])))
+    dT[:] = dtuniform
+    
     
     T[1] = T[0] + dT*dt
     ttemp = T
@@ -154,12 +150,20 @@ for i in range(int(time/dt)):
     printProgressBar(i,int(time/dt))
     
 if(disp):
-    #plot the final value
+    #plot the final T value in a donut
     fig = plt.figure()
     ax = fig.add_subplot(111)
     R,Theta = np.meshgrid(rarr,thetaarr)
     X, Y = R*np.cos(Theta), R*np.sin(Theta)
     im = ax.pcolormesh(X, Y, T[0],cmap='plasma')
     fig.colorbar(im)
+    #plot the mass fraction and Temperature as a function of radius
+    plt.figure(2)
+    plt.plot(rarr,T[0,0,:])
+    
+    plt.xlabel("Radius (m)")
+    plt.ylabel("Temperature(K)")
+    
+    
             
     

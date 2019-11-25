@@ -19,7 +19,7 @@ animtime = 13
 
 heatRate = .1
 
-n = 50
+n = 100
 dt = .01
 length = .01 #depth of ab layer
 dx = length/n
@@ -74,7 +74,7 @@ def a2(T):
 #Chemical reaction properties
 Ea = 383E3 / 4.5#j/mol
 M = 0.018 #kg/mol
-Ac = 3.63E6 # kg/m
+Ac = 0#3.63E6 # kg/m
 dH = 418E3 * 2.5#J/kg
 
 hg = 10.8377E3# 2.6E3  #w/m^2k
@@ -139,7 +139,7 @@ def runSim(length,hg,Taw,ri,disp = False):
         #boundary influx
         #qIn[0] = hg * (Taw-T[0][0])
         #qIn[0] = 2E5
-        dT[0] += (dt * qIn[0] * sA[0])/(mEl[0][0] * cpEff[0])
+        #dT[0] += (dt * qIn[0] * sA[0])/(mEl[0][0] * cpEff[0])
         #Radiation from outer surface
 #        radPower = (emmisivity * sigma * sA[0]) * T[0][0] ** 4
 #        dT[0] -= (radPower*dt)/(mEl[0][0] * cpEff[0])
