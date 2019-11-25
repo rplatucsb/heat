@@ -6,8 +6,9 @@ Created on Sun Nov 24 18:38:02 2019
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-from pylab import pcolor
+import scipy as sp
+from scipy import sparse
+import time
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
@@ -24,7 +25,7 @@ np.set_printoptions(suppress=True)
 nr = 100
 ntheta = 100
 dt = .001
-time = 10
+nettime = 10
 
 
 ###Propeties taken from https://www.researchgate.net/publication/260491141_Modeling_of_one-dimensional_thermal_response_of_silica-phenolic_composites_with_volume_ablation
@@ -69,7 +70,7 @@ hg = 10.8377E3# 2.6E3  #w/m^2k
 Taw = 3300 #k   
 
 
-
+timestart = time.time()
 #def runSim(length,hg,Taw,ri,disp = True):
 
 length,hg,Taw,ri,disp = .015,2593,2880,.0165,True
@@ -128,10 +129,14 @@ A1 = A1 / dr**2
 A2 = A2 / (dr)
 A3 = A3 / dtheta**2
 
+#A1 = sp.sparse.csr_matrix(A1)
+#A2 = sp.sparse.csr_matrix(A2)
+
+
 T[0,:,:] = 285
 T[0,:,0] = 280
 dT = np.zeros((ntheta,nr))
-for i in range(int(time/dt)):
+for i in range(int(nettime/dt)):
     
     """ Original code, capable of heat flow in r and theta directions
     for count,Tr in enumerate(T[0]): #in a single iteration, we have a matrix of temps at a certain theta
@@ -142,13 +147,15 @@ for i in range(int(time/dt)):
     """ This code runs much faster, but can only do axisymmetric"""
     dtuniform = alpha(T[0,0,:]) * ((np.matmul(A1,T[0,0,:]) + np.matmul(A2,T[0,0,:])))
     dT[:] = dtuniform
+    #sparse matrix implementation
+#    dtuniform = alpha(T[0,0,:]) * (A1 @ T[0,0,:] + A2 @ T[0,0,:])
+#    dT[:] = dtuniform
     
-    
-    T[1] = T[0] + dT*dt
+    T[1] = T[0] + dt*dT
     ttemp = T
     T[0] = ttemp[1]
-    printProgressBar(i,int(time/dt))
-    
+    printProgressBar(i,int(nettime/dt))
+print(T)
 if(disp):
     #plot the final T value in a donut
     fig = plt.figure()
@@ -163,7 +170,7 @@ if(disp):
     
     plt.xlabel("Radius (m)")
     plt.ylabel("Temperature(K)")
-    
+    print("Runtime: " + str(time.time() - timestart))
     
             
     
