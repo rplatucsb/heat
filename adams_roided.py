@@ -29,10 +29,11 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total: 
         print()
+np.set_printoptions(precision=5)
+np.set_printoptions(suppress=True)
 
-nr = 20
-ntheta = 50
-nr = ntheta
+nr = 40
+ntheta = 10
 dt = .01
 time = 10
 
@@ -65,7 +66,7 @@ emmisivity = 0
 rhof = 2200
 
 def alpha(T):
-    return 100 * k(T)/(cp(T)*rho)
+    return k(T)/(cp(T)*rho)
 def alpha2(T):
     return k2(T)/(cp2(T)*rho2)
 
@@ -90,11 +91,12 @@ dtheta = 2*np.pi/ntheta
 rarr = np.linspace(ri,ri+length,nr)
 thetaarr = np.linspace(0,2*np.pi,ntheta)
 
+#FORMAT is T(theta,radius)
 T = np.zeros((2,ntheta,nr))
 
 
 
-A1,A2,A3 = np.zeros((ntheta,nr)),np.zeros((ntheta,nr)),np.zeros((ntheta,nr))
+A1,A2,A3 = np.zeros((nr,nr)),np.zeros((nr,nr)),np.zeros((ntheta,ntheta))
 
 #DEFINE BOUNDARY CONDITIONS
 A1[0][0] = -1   
@@ -109,14 +111,13 @@ A2[-1][-2] = -1/2
 A2[0] = A2[0] * (1/rarr[0])
 A2[-1] = A2[-1] * (1/rarr[-1])
 
-A3[0][0] = -1   
+A3[0][0] = -2   
 A3[0][1] = 1 
-A3[-1][-1] = -1
+A3[0][-1] = 1
+A3[-1][-1] = -2
 A3[-1][-2] = 1
-A3[0] = A3[0] * (1/rarr[0])**2
-A3[-1] = A3[-1] * (1/rarr[-1])**2
-
-for i in range (1,ntheta-1):
+A3[-1][0] = 1
+for i in range (1,nr-1):
     A1[i][i-1] = 1 
     A1[i][i+1] = 1
     A1[i][i] = -2
@@ -126,10 +127,11 @@ for i in range (1,ntheta-1):
     A2[i][i] = 0
     A2[i] = A2[i] * (1/rarr[i])
     
+for i in range(1,ntheta-1):
     A3[i][i-1] = 1 
     A3[i][i+1] = 1
     A3[i][i] = -2
-    A3[i] = A3[i] * (1/rarr[i])**2
+    A3[i] = A3[i]
 
 
 A1 = A1 / dr**2
@@ -138,13 +140,14 @@ A3 = A3 / dtheta**2
 
 
 T[0,:,:] = 285
-T[0,0,:] = 280
+T[0,:,0] = 280
 dT = np.zeros((ntheta,nr))
 for i in range(int(time/dt)):
-    for count,Tr in enumerate(T[0]):
+    for count,Tr in enumerate(T[0]): #in a single iteration, we have a matrix of temps at a certain theta
         dT[count,:] = alpha(Tr) * ((np.matmul(A1,Tr) + np.matmul(A2,Tr)))
-    for count,Ttheta in enumerate(T[0].T):
-        dT[:,count] += alpha(Ttheta) * (np.matmul(A3,Ttheta))
+    for count,Ttheta in enumerate(T[0].T):#in a single iteration, we have a matrix of temps at a certain radius
+        dT[:,count] += alpha(Ttheta) * ((np.matmul(A3,Ttheta))*(1/rarr[count]**2))
+    
     T[1] = T[0] + dT*dt
     ttemp = T
     T[0] = ttemp[1]
@@ -156,7 +159,7 @@ if(disp):
     ax = fig.add_subplot(111)
     R,Theta = np.meshgrid(rarr,thetaarr)
     X, Y = R*np.cos(Theta), R*np.sin(Theta)
-    im = ax.pcolormesh(X, Y, T[0].T,cmap='plasma')
+    im = ax.pcolormesh(X, Y, T[0],cmap='plasma')
     fig.colorbar(im)
             
     

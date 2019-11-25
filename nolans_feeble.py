@@ -19,11 +19,11 @@ animtime = 13
 
 heatRate = .1
 
-n = 500
-dt = .0005
+n = 50
+dt = .01
 length = .01 #depth of ab layer
 dx = length/n
-btime = 13 #* 10/(heatRate)
+btime = 10 #* 10/(heatRate)
 sA = np.array([.0001]) #m^2
 ri = .03659 / 2
 dy = .02
@@ -82,7 +82,7 @@ Taw = 3300 #k
 
 def runSim(length,hg,Taw,ri,disp = False): 
     dx = length/n
-    dt = dx**2/(2*a(285)) * .9
+    #dt = dx**2/(2*a(285)) * .9
     rArr = np.linspace(ri,ri+length,n)
     vEl = np.pi*dy*((rArr+dx)**2-rArr**2)
     sA = 2 * np.pi * dy * (rArr)
@@ -96,6 +96,7 @@ def runSim(length,hg,Taw,ri,disp = False):
     
     T[0] = np.linspace(150,50,n)
     T[0].fill(285)
+    T[0,0] = 280
     V[0] = np.ones(n) #Resin is only 51% of the material initially, this fraction represents fraction of that 51%. 
     M[0] = np.ones(n) #resin mass fraction, again, see above. This will be used to evaluate virgin v char material properties
     mEl[0] = poly_frac*vEl*rho+fibre_frac*vEl*rhof
@@ -115,10 +116,10 @@ def runSim(length,hg,Taw,ri,disp = False):
         A[0][0] = -1   
         A[0][1] = 1 
         #new
-        A[0][0] = -11/6 
-        A[0][1] = 3
-        A[0][2] = -3/2
-        A[0][3] = 1/3
+#        A[0][0] = -11/6 
+#        A[0][1] = 3
+#        A[0][2] = -3/2
+#        A[0][3] = 1/3
         
         A[-1][-1] = -1
         A[-1][-2] = 1
