@@ -25,7 +25,7 @@ np.set_printoptions(suppress=True)
 nr = 100
 ntheta = 100
 dt = .001
-nettime = 10
+nettime = 100
 
 
 ###Propeties taken from https://www.researchgate.net/publication/260491141_Modeling_of_one-dimensional_thermal_response_of_silica-phenolic_composites_with_volume_ablation
@@ -70,107 +70,113 @@ hg = 10.8377E3# 2.6E3  #w/m^2k
 Taw = 3300 #k   
 
 
-timestart = time.time()
-#def runSim(length,hg,Taw,ri,disp = True):
 
-length,hg,Taw,ri,disp = .015,2593,2880,.0165,True
-dr = length/nr
-dtheta = 2*np.pi/ntheta
-rarr = np.linspace(ri,ri+length,nr)
-thetaarr = np.linspace(0,2*np.pi,ntheta)
-
-#FORMAT is T(theta,radius)
-#IE ise theta is rows, iso R is columns
-T = np.zeros((2,ntheta,nr))
-
-
-#a1,a2 are second and first T derivative wrt R
-#a3 is second order T derivative with theta
-A1,A2,A3 = np.zeros((nr,nr)),np.zeros((nr,nr)),np.zeros((ntheta,ntheta))
-
-#DEFINE BOUNDARY CONDITIONS
-A1[0][0] = -1   
-A1[0][1] = 1 
-A1[-1][-1] = -1
-A1[-1][-2] = 1
-
-A2[0][0] = -1/2   
-A2[0][1] = 1/2 
-A2[-1][-1] = 1/2
-A2[-1][-2] = -1/2
-A2[0] = A2[0] * (1/rarr[0])
-A2[-1] = A2[-1] * (1/rarr[-1])
-
-A3[0][0] = -2   
-A3[0][1] = 1 
-A3[0][-1] = 1
-A3[-1][-1] = -2
-A3[-1][-2] = 1
-A3[-1][0] = 1
-#central finite differences in r and theta
-for i in range (1,nr-1):
-    A1[i][i-1] = 1 
-    A1[i][i+1] = 1
-    A1[i][i] = -2
+def runSim(length,hg,Taw,ri,disp = True):
+    timestart = time.time()
+    dt = (length/nr)**2/(2*alpha(280)) * .9
+    #length,hg,Taw,ri,disp = .015,2593,2880,.0165,True
+    dr = length/nr
+    dtheta = 2*np.pi/ntheta
+    rarr = np.linspace(ri,ri+length,nr)
+    thetaarr = np.linspace(0,2*np.pi,ntheta)
     
-    A2[i][i-1] = -1/2 
-    A2[i][i+1] = 1/2
-    A2[i][i] = 0
-    A2[i] = A2[i] * (1/rarr[i])
+    #FORMAT is T(theta,radius)
+    #IE ise theta is rows, iso R is columns
+    T = np.zeros((2,ntheta,nr))
     
-for i in range(1,ntheta-1):
-    A3[i][i-1] = 1 
-    A3[i][i+1] = 1
-    A3[i][i] = -2
-    A3[i] = A3[i]
-
-
-A1 = A1 / dr**2
-A2 = A2 / (dr)
-A3 = A3 / dtheta**2
-
-#A1 = sp.sparse.csr_matrix(A1)
-#A2 = sp.sparse.csr_matrix(A2)
-
-
-T[0,:,:] = 285
-T[0,:,0] = 280
-dT = np.zeros((ntheta,nr))
-for i in range(int(nettime/dt)):
     
-    """ Original code, capable of heat flow in r and theta directions
-    for count,Tr in enumerate(T[0]): #in a single iteration, we have a matrix of temps at a certain theta
-        dT[count,:] = alpha(Tr) * ((np.matmul(A1,Tr) + np.matmul(A2,Tr)))
-    for count,Ttheta in enumerate(T[0].T):#in a single iteration, we have a matrix of temps at a certain radius
-        dT[:,count] += alpha(Ttheta) * ((np.matmul(A3,Ttheta))*(1/rarr[count]**2))
-    """
-    """ This code runs much faster, but can only do axisymmetric"""
-    dtuniform = alpha(T[0,0,:]) * ((np.matmul(A1,T[0,0,:]) + np.matmul(A2,T[0,0,:])))
-    dT[:] = dtuniform
-    #sparse matrix implementation
-#    dtuniform = alpha(T[0,0,:]) * (A1 @ T[0,0,:] + A2 @ T[0,0,:])
-#    dT[:] = dtuniform
+    #a1,a2 are second and first T derivative wrt R
+    #a3 is second order T derivative with theta
+    A1,A2,A3 = np.zeros((nr,nr)),np.zeros((nr,nr)),np.zeros((ntheta,ntheta))
     
-    T[1] = T[0] + dt*dT
-    ttemp = T
-    T[0] = ttemp[1]
-    printProgressBar(i,int(nettime/dt))
-print(T)
-if(disp):
-    #plot the final T value in a donut
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    R,Theta = np.meshgrid(rarr,thetaarr)
-    X, Y = R*np.cos(Theta), R*np.sin(Theta)
-    im = ax.pcolormesh(X, Y, T[0],cmap='plasma')
-    fig.colorbar(im)
-    #plot the mass fraction and Temperature as a function of radius
-    plt.figure(2)
-    plt.plot(rarr,T[0,0,:])
+    #DEFINE BOUNDARY CONDITIONS
+    A1[0][0] = -2
+    A1[0][1] = 1
+    A1[-1][-1] = -1
+    A1[-1][-2] = 1
     
-    plt.xlabel("Radius (m)")
-    plt.ylabel("Temperature(K)")
-    print("Runtime: " + str(time.time() - timestart))
+    A2[0][1] = 1/2 * (1/rarr[0])
+    A2[-1] = 0
     
-            
+    A3[0][0] = -2   
+    A3[0][1] = 1 
+    A3[0][-1] = 1
+    A3[-1][-1] = -2
+    A3[-1][-2] = 1
+    A3[-1][0] = 1
+    #central finite differences in r and theta
+    for i in range (1,nr-1):
+        A1[i][i-1] = 1 
+        A1[i][i+1] = 1
+        A1[i][i] = -2
+        
+        A2[i][i-1] = -1/2 
+        A2[i][i+1] = 1/2
+        A2[i][i] = 0
+        A2[i] = A2[i] * (1/rarr[i])
+        
+    for i in range(1,ntheta-1):
+        A3[i][i-1] = 1 
+        A3[i][i+1] = 1
+        A3[i][i] = -2
+        A3[i] = A3[i]
     
+    
+    A1 = A1 / dr**2
+    A2 = A2 / (dr)
+    A3 = A3 / dtheta**2
+    
+    A12 = A1 + A2
+    print(A1)
+    print(A2)
+    #A1 = sp.sparse.csr_matrix(A1)
+    #A2 = sp.sparse.csr_matrix(A2)
+    
+    
+    T[0,:,:] = 285
+    dT = np.zeros((ntheta,nr))
+    for i in range(int(nettime/dt)):
+        
+        """ Original code, capable of heat flow in r and theta directions
+        for count,Tr in enumerate(T[0]): #in a single iteration, we have a matrix of temps at a certain theta
+            dT[count,:] = alpha(Tr) * ((np.matmul(A1,Tr) + np.matmul(A2,Tr)))
+        for count,Ttheta in enumerate(T[0].T):#in a single iteration, we have a matrix of temps at a certain radius
+            dT[:,count] += alpha(Ttheta) * ((np.matmul(A3,Ttheta))*(1/rarr[count]**2))
+        """
+        """ This code runs much faster, but can only do axisymmetric"""
+        k0 = k(T[0,0,0])
+        imaginaryTemp = T[0,0,1] - (2*dr*hg/k0)*(T[0,0,0]-Taw)
+        dtuniform = alpha(T[0,0,:]) * (np.matmul(A12,T[0,0,:])) 
+        dtuniform[0] = dtuniform[0] + alpha(T[0,0,0]) * (imaginaryTemp/dr**2 - imaginaryTemp/(2*dr*rarr[0]))
+        print(dtuniform[0])
+        dT[:] = dtuniform
+        #sparse matrix implementation
+    #    dtuniform = alpha(T[0,0,:]) * (A1 @ T[0,0,:] + A2 @ T[0,0,:])
+    #    dT[:] = dtuniform
+        
+        T[1] = T[0] + dt*dT
+        ttemp = T
+        T[0] = ttemp[1]
+        printProgressBar(i,int(nettime/dt))
+    if(disp):
+        #plot the final T value in a donut
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        R,Theta = np.meshgrid(rarr,thetaarr)
+        X, Y = R*np.cos(Theta), R*np.sin(Theta)
+        im = ax.pcolormesh(X, Y, T[0],cmap='plasma')
+        fig.colorbar(im)
+        #plot the mass fraction and Temperature as a function of radius
+        plt.figure(2)
+        plt.plot(rarr,T[0,0,:])
+        
+        plt.xlabel("Radius (m)")
+        plt.ylabel("Temperature(K)")
+        print("Runtime: " + str(time.time() - timestart))
+    return(T[0])
+    
+#tdat = []
+#for i in np.linspace(600,1000,4):
+#    nr = int(i)
+#    T = runSim(.015,2593,2880,.0165,True)
+#    tdat.append(np.max(T)-np.min(T))
