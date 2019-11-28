@@ -18,15 +18,15 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total: 
         print()
-np.set_printoptions(precision=5)
+#np.set_printoptions(precision=5)
 #np.set_printoptions(suppress=True)
 
 #sim mesh options
 nr = 200
 ntheta = 2
 dt = .001
-nettime = 13
-height = 1
+nettime = 1
+height = 100
 
 ###Propeties taken from https://www.researchgate.net/publication/260491141_Modeling_of_one-dimensional_thermal_response_of_silica-phenolic_composites_with_volume_ablation
 sigma = 5.67E-8
@@ -63,7 +63,7 @@ def alpha2(T):
 #Chemical reaction properties
 Ea = 383E3 / 4.5#j/mol
 M = 0.018 #kg/mol
-Ac = 3.63E6 # kg/m
+Ac =  3.63E6 # kg/m
 dH = 418E3 * 2.5#J/kg
 
 hg = 10.8377E3# 2.6E3  #w/m^2k
@@ -153,18 +153,30 @@ def runSim(length,hg,Taw,ri,disp = True):
         cpeff = (M[0,0,:]*cp(T[0,0,:])+(1-M[0,0,:])*cp2(T[0,0,:]))
         aeff = (M[0,0,:]*alpha(T[0,0,:])+(1-M[0,0,:])*alpha2(T[0,0,:]))
         k0 = (M[0,0,0]*k(T[0,0,0])+(1-M[0,0,0])*k(T[0,0,0]))
+        
         '''define heat influx boundary condition '''
         imaginaryTemp = T[0,0,1] - (2*dr*hg/k0)*(T[0,0,0]-Taw)
         '''calculate conduction '''
         dTuniformconduction = dt*aeff * (np.matmul(A12,T[0,0,:])) 
         dTuniformconduction[0] = dTuniformconduction[0] + dt*aeff[0] * (imaginaryTemp/dr**2 - imaginaryTemp/(2*dr*rarr[0]))
-        
+        '''experimental blowoff calculation '''
+        if((T[0,0,:] > 2300).any()):
+            boundary = np.where(T[0,0,:] > 2300)[0][-1]
+            boundary += 1
+            imaginaryTemp = T[0,0,boundary+1] - (2*dr*hg/k0)*(T[0,0,boundary]-Taw)
+            dTuniformconduction = np.zeros(nr)
+            dTuniformconduction[boundary:] = dt*aeff[boundary:] * (np.matmul(A12[boundary:,boundary:],T[0,0,boundary:]))
+            dTuniformconduction[boundary] = -dt *aeff[boundary] *(T[0,0,boundary-1]/dr**2 - T[0,0,boundary-1]/(2*dr*rarr[boundary]))+ dTuniformconduction[boundary] + dt*aeff[boundary] * (imaginaryTemp/dr**2 - imaginaryTemp/(2*dr*rarr[boundary]))
+            if(not (np.isnan(T)).any()):
+                print(boundary)
+                print(T[0,0])
         '''calculate ablation '''
         reactionRate = Ac * (poly_frac) * (V[0,0,:]) * np.exp(-Ea/(gascnst*T[0,0,:])) 
         dV = -reactionRate * dt / rho
         dV[V[0,0,:]-dV<0] = 0
         dE = dV * vEl*poly_frac * rho * dH 
         dTuniformablation = dE / (mEl[0,0,:] * cpeff)
+        
         
         #sparse matrix implementation
     #    dtuniform = alpha(T[0,0,:]) * (A1 @ T[0,0,:] + A2 @ T[0,0,:])
