@@ -19,18 +19,18 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 np.set_printoptions(precision=5)
-np.set_printoptions(suppress=True)
+#np.set_printoptions(suppress=True)
 
 #sim mesh options
-nr = 100
-ntheta = 100
+nr = 200
+ntheta = 2
 dt = .001
-nettime = 100
-
+nettime = 13
+height = 1
 
 ###Propeties taken from https://www.researchgate.net/publication/260491141_Modeling_of_one-dimensional_thermal_response_of_silica-phenolic_composites_with_volume_ablation
 sigma = 5.67E-8
-R = 8.314
+gascnst = 8.314
 poly_frac = .51
 fibre_frac = .38
 char_frac = 1/5 #mass fraction of polymer that reacts and turns into char 
@@ -73,17 +73,20 @@ Taw = 3300 #k
 
 def runSim(length,hg,Taw,ri,disp = True):
     timestart = time.time()
-    dt = (length/nr)**2/(2*alpha(280)) * .9
+    dt = (length/nr)**2/(2*alpha(280)) * .05
     #length,hg,Taw,ri,disp = .015,2593,2880,.0165,True
     dr = length/nr
     dtheta = 2*np.pi/ntheta
     rarr = np.linspace(ri,ri+length,nr)
     thetaarr = np.linspace(0,2*np.pi,ntheta)
+    vEl = np.array(dtheta * np.pi * height * (2 * rarr * dr + dr**2))
     
     #FORMAT is T(theta,radius)
-    #IE ise theta is rows, iso R is columns
-    T = np.zeros((2,ntheta,nr))
-    
+    #IE iso theta is rows, iso R is columns
+    T = np.zeros((2,ntheta,nr)) 
+    V = np.ones((2,ntheta,nr))#volume fraction
+    M = np.ones((2,ntheta,nr))#mass fraction
+    mEl = np.zeros((2,ntheta,nr))#mass of individual elements
     
     #a1,a2 are second and first T derivative wrt R
     #a3 is second order T derivative with theta
@@ -127,14 +130,16 @@ def runSim(length,hg,Taw,ri,disp = True):
     A3 = A3 / dtheta**2
     
     A12 = A1 + A2
-    print(A1)
-    print(A2)
+
     #A1 = sp.sparse.csr_matrix(A1)
     #A2 = sp.sparse.csr_matrix(A2)
     
     
-    T[0,:,:] = 285
+    T[0,:,:] = 300
+    mEl[0,0,:] = poly_frac*vEl*rho+fibre_frac*vEl*rhof
     dT = np.zeros((ntheta,nr))
+    dV = np.zeros((ntheta,nr))
+
     for i in range(int(nettime/dt)):
         
         """ Original code, capable of heat flow in r and theta directions
@@ -144,19 +149,43 @@ def runSim(length,hg,Taw,ri,disp = True):
             dT[:,count] += alpha(Ttheta) * ((np.matmul(A3,Ttheta))*(1/rarr[count]**2))
         """
         """ This code runs much faster, but can only do axisymmetric"""
-        k0 = k(T[0,0,0])
+        ''' Define mass averaged properties at nodes '''
+        cpeff = (M[0,0,:]*cp(T[0,0,:])+(1-M[0,0,:])*cp2(T[0,0,:]))
+        aeff = (M[0,0,:]*alpha(T[0,0,:])+(1-M[0,0,:])*alpha2(T[0,0,:]))
+        k0 = (M[0,0,0]*k(T[0,0,0])+(1-M[0,0,0])*k(T[0,0,0]))
+        '''define heat influx boundary condition '''
         imaginaryTemp = T[0,0,1] - (2*dr*hg/k0)*(T[0,0,0]-Taw)
-        dtuniform = alpha(T[0,0,:]) * (np.matmul(A12,T[0,0,:])) 
-        dtuniform[0] = dtuniform[0] + alpha(T[0,0,0]) * (imaginaryTemp/dr**2 - imaginaryTemp/(2*dr*rarr[0]))
-        print(dtuniform[0])
-        dT[:] = dtuniform
+        '''calculate conduction '''
+        dTuniformconduction = dt*aeff * (np.matmul(A12,T[0,0,:])) 
+        dTuniformconduction[0] = dTuniformconduction[0] + dt*aeff[0] * (imaginaryTemp/dr**2 - imaginaryTemp/(2*dr*rarr[0]))
+        
+        '''calculate ablation '''
+        reactionRate = Ac * (poly_frac) * (V[0,0,:]) * np.exp(-Ea/(gascnst*T[0,0,:])) 
+        dV = -reactionRate * dt / rho
+        dV[V[0,0,:]-dV<0] = 0
+        dE = dV * vEl*poly_frac * rho * dH 
+        dTuniformablation = dE / (mEl[0,0,:] * cpeff)
+        
         #sparse matrix implementation
     #    dtuniform = alpha(T[0,0,:]) * (A1 @ T[0,0,:] + A2 @ T[0,0,:])
     #    dT[:] = dtuniform
+        dT[:] = dTuniformconduction + dTuniformablation
+        dV[:] = dV
+
+        T[1] = T[0] + dT
+        V[1] = V[0] + dV
+        M[:] = (V[1] * rho ) / (V[1]*rho+(1-V[1])*rho2)
+        mEl[:] = poly_frac  * vEl * (V[0]*rho + char_frac*(1-V[0])*rho2) + rhof * fibre_frac * vEl
         
-        T[1] = T[0] + dt*dT
-        ttemp = T
-        T[0] = ttemp[1]
+        Ttemp = T
+        mElTemp = mEl
+        Vtemp = V
+        Mtemp = M
+        T[0] = Ttemp[1]
+        V[0] = Vtemp[1]
+        M[0] = Mtemp[1]
+        mEl[0] = mElTemp[1]
+        
         printProgressBar(i,int(nettime/dt))
     if(disp):
         #plot the final T value in a donut
@@ -166,14 +195,18 @@ def runSim(length,hg,Taw,ri,disp = True):
         X, Y = R*np.cos(Theta), R*np.sin(Theta)
         im = ax.pcolormesh(X, Y, T[0],cmap='plasma')
         fig.colorbar(im)
-        #plot the mass fraction and Temperature as a function of radius
-        plt.figure(2)
-        plt.plot(rarr,T[0,0,:])
         
+        #plot the mass fraction and Temperature as a function of radius
+        plt.figure(3)
+        fig,ax = plt.subplots()
+        ax2 = ax.twinx()
+        ln, = ax.plot(rarr,T[0,0,:],'r')
+        ln2, = ax2.plot(rarr,V[0,0,:])
+        ax.set_ylabel("Temperature(K)")
+        ax2.set_ylabel("Volume Fraction of original material")
         plt.xlabel("Radius (m)")
-        plt.ylabel("Temperature(K)")
         print("Runtime: " + str(time.time() - timestart))
-    return(T[0])
+    return(T[0],V[0])
     
 #tdat = []
 #for i in np.linspace(600,1000,4):

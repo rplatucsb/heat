@@ -19,11 +19,11 @@ animtime = 13
 
 heatRate = .1
 
-n = 100
+n = 500
 dt = .01
 length = .01 #depth of ab layer
 dx = length/n
-btime = 10 #* 10/(heatRate)
+btime = 13 #* 10/(heatRate)
 sA = np.array([.0001]) #m^2
 ri = .03659 / 2
 dy = .02
@@ -74,7 +74,7 @@ def a2(T):
 #Chemical reaction properties
 Ea = 383E3 / 4.5#j/mol
 M = 0.018 #kg/mol
-Ac = 0#3.63E6 # kg/m
+Ac = 3.63E6 # kg/m
 dH = 418E3 * 2.5#J/kg
 
 hg = 10.8377E3# 2.6E3  #w/m^2k
@@ -82,7 +82,7 @@ Taw = 3300 #k
 
 def runSim(length,hg,Taw,ri,disp = False): 
     dx = length/n
-    #dt = dx**2/(2*a(285)) * .9
+    dt = dx**2/(2*a(285)) * .9
     rArr = np.linspace(ri,ri+length,n)
     vEl = np.pi*dy*((rArr+dx)**2-rArr**2)
     sA = 2 * np.pi * dy * (rArr)
@@ -95,8 +95,7 @@ def runSim(length,hg,Taw,ri,disp = False):
     qIn = np.zeros((2))
     
     T[0] = np.linspace(150,50,n)
-    T[0].fill(285)
-    T[0,0] = 280
+    T[0].fill(300)
     V[0] = np.ones(n) #Resin is only 51% of the material initially, this fraction represents fraction of that 51%. 
     M[0] = np.ones(n) #resin mass fraction, again, see above. This will be used to evaluate virgin v char material properties
     mEl[0] = poly_frac*vEl*rho+fibre_frac*vEl*rhof
@@ -137,9 +136,9 @@ def runSim(length,hg,Taw,ri,disp = False):
         dE = dV * vEl*poly_frac * rho * dH 
         dT2 = dE / (mEl[0] * cpEff)
         #boundary influx
-        #qIn[0] = hg * (Taw-T[0][0])
+        qIn[0] = hg * (Taw-T[0][0])
         #qIn[0] = 2E5
-        #dT[0] += (dt * qIn[0] * sA[0])/(mEl[0][0] * cpEff[0])
+        dT[0] += (dt * qIn[0] * sA[0])/(mEl[0][0] * cpEff[0])
         #Radiation from outer surface
 #        radPower = (emmisivity * sigma * sA[0]) * T[0][0] ** 4
 #        dT[0] -= (radPower*dt)/(mEl[0][0] * cpEff[0])
@@ -229,7 +228,7 @@ def runSim(length,hg,Taw,ri,disp = False):
 ##Plot last value for this run
 
 t = time.time()
-T1,V1 = runSim(.015,2593,2880,.0165,disp=True)
+T1,V1 = runSim(.015,8593,2880,.0165,disp=True)
 print(time.time()-t)
 X1 = np.linspace(0,.015,n)
 T1 = T1 - 273.15
